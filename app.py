@@ -13,9 +13,9 @@ from pymongo import MongoClient
 #establish the connection
 client = MongoClient('localhost', 27017)
 
-db = client['pymongo_test']
-users = db['users']
-orders = db['orders']
+db_mongo = client['pymongo_test']
+users = db_mongo['users']
+orders = db_mongo['orders']
 
 # before extracting the max_date from Postgres
 max_date = None 
@@ -32,4 +32,14 @@ updated_orders = orders.find( query )
 
 print(f'len(updated_orders) = {len(list(updated_orders))}')
 
+
+# transform
+
+# iterate through orders
+
+# for each order select the corresponding user
+
+# connect the dicts, get rid of the '_id' key
+
+# update the records in the postgres database
 
