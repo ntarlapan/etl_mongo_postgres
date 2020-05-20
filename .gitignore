@@ -7,3 +7,6 @@ venv/*
 
 # Pycache files
 __pycache__/*
+
+# Log files
+*.log

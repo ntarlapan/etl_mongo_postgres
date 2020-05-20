@@ -1,4 +1,5 @@
 from datetime import datetime
+import logging
 import os
 
 from flask import Flask
@@ -8,7 +9,20 @@ from sqlalchemy import create_engine
 from sqlalchemy.sql.expression import text
 from pymongo import MongoClient
 
-from db_statements import STMT_CREATE_ORDERS_USERS, STMT_UPSERT_POSTGRES
+# from .db_statements import STMT_CREATE_ORDERS_USERS, STMT_UPSERT_POSTGRES
+from db_statements import *
+
+
+logging.basicConfig(filename='etl_app.log',
+                            filemode='a',
+                            format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
+                            datefmt='%H:%M:%S',
+                            level=logging.DEBUG)
+# todo : add date to the logger format
+logging.info("Running ETL Service")
+
+logger = logging.getLogger('etl_service')
+
 
 DEFAULT_MAX_DATE = datetime(2020, 1, 1, 0, 0, 0)
 DEFAULT_MAX_ROWS = 1000
@@ -60,10 +74,10 @@ with engine.connect() as connection:
 if max_date is None:
     max_date = DEFAULT_MAX_DATE
     is_first_synchronization = True
-    print('Running the synchronization for the first time!')
+    logger.info('Running the synchronization for the first time!')
 else:
     is_first_synchronization = False
-    print(f'Running the synchronization with existing data, max_date = {max_date}!')
+    logger.info(f'Running the synchronization with existing data, max_date = {max_date}!')
 
 # configs mongodb
 MONGO_COLLECTION = 'pymongo_test'
@@ -117,14 +131,14 @@ def synch_postgres_with_mongo():
             # update the records in the postgres database
             with engine.connect() as connection:
                 connection.execute(text(STMT_UPSERT_POSTGRES), current_row_batch)
-            print(f'inserted {len(current_row_batch)} rows in Postgres')
+            logger.debug(f'inserted {len(current_row_batch)} rows in Postgres')
             # empty the batch:
             current_row_batch = []
     with engine.connect() as connection:
         connection.execute(text(STMT_UPSERT_POSTGRES), current_row_batch)
-    print(f'inserted {len(current_row_batch)} rows in Postgres')
+    logger.debug(f'inserted {len(current_row_batch)} rows in Postgres')
 
-    print('synchronization performed successfully for timedate {}')
+    logger.info(f'synchronization performed successfully at {datetime.now()}')
 
 
 if __name__ == '__main__':
