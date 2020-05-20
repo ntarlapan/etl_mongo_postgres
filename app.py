@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 import os
 
 from flask import Flask
@@ -10,8 +10,8 @@ from pymongo import MongoClient
 
 from db_statements import STMT_CREATE_ORDERS_USERS, STMT_UPSERT_POSTGRES
 
-DEFAULT_MAX_DATE = datetime.datetime(2020, 1, 1, 0, 0, 0)
-DEFAULT_MAX_ROWS = 1 #1000
+DEFAULT_MAX_DATE = datetime(2020, 1, 1, 0, 0, 0)
+DEFAULT_MAX_ROWS = 1000
 BLANK_USER_DICT = {'user_first_name': None,
 'user_last_name': None, 'user_merchant_id': None,
 'user_phone_number': None, 'user_created_at': None, 'user_updated_at':None}
@@ -44,7 +44,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # silence the deprecation 
 # db_postgres = SQLAlchemy(app)
 
 INSTALLED_DATABASE_URL = 'postgresql://postgres:uGAn7agA@localhost:5432/go_parrot'
-engine = create_engine(INSTALLED_DATABASE_URL, echo=True)
+engine = create_engine(INSTALLED_DATABASE_URL, echo=False)
 
 # create the table in postgres (if it does not exist)
 with engine.connect() as connection:
@@ -60,8 +60,10 @@ with engine.connect() as connection:
 if max_date is None:
     max_date = DEFAULT_MAX_DATE
     is_first_synchronization = True
+    print('Running the synchronization for the first time!')
 else:
     is_first_synchronization = False
+    print(f'Running the synchronization with existing data, max_date = {max_date}!')
 
 # configs mongodb
 MONGO_COLLECTION = 'pymongo_test'
@@ -96,30 +98,31 @@ def synch_postgres_with_mongo():
 
     # TODO should I maybe transform some values like dates. Not sure - check.
     # Transform - iterate through orders
-    # import pdb; pdb.set_trace()
     for updated_order_record in updated_orders:
         # for each order select the corresponding user
         user_id = updated_order_record['user_id']
         user_record = users.find_one({'user_id': user_id })
         # connect the dicts, get rid of the '_id' key
         # TODO what if there is no such user in the users collection
-        # import pdb; pdb.set_trace()
         if user_record is not None:
             for key, value in user_record.items():
                 if key in ['id_', 'user_id']:
                     continue
-                updated_order_record['user' + key] = value
+                updated_order_record['user_' + key] = value
         else:
             for key, value in BLANK_USER_DICT.items():
                 updated_order_record[key] = value
-        import pdb; pdb.set_trace()
         current_row_batch.append(updated_order_record)
-        if len(current_row_batch) > DEFAULT_MAX_ROWS:
+        if len(current_row_batch) >= DEFAULT_MAX_ROWS:
             # update the records in the postgres database
             with engine.connect() as connection:
                 connection.execute(text(STMT_UPSERT_POSTGRES), current_row_batch)
+            print(f'inserted {len(current_row_batch)} rows in Postgres')
             # empty the batch:
             current_row_batch = []
+    with engine.connect() as connection:
+        connection.execute(text(STMT_UPSERT_POSTGRES), current_row_batch)
+    print(f'inserted {len(current_row_batch)} rows in Postgres')
 
     print('synchronization performed successfully for timedate {}')
 
