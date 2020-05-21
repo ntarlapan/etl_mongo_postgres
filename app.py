@@ -5,35 +5,32 @@ import os
 from flask import Flask
 from flask_crontab import Crontab
 from flask_sqlalchemy import SQLAlchemy
+import sqlalchemy
 from sqlalchemy import create_engine
 from sqlalchemy.sql.expression import text
 from pymongo import MongoClient
 
 # from .db_statements import STMT_CREATE_ORDERS_USERS, STMT_UPSERT_POSTGRES
 from db_statements import *
-from utils import get_env_variable
-
+from utils import database_exists, get_env_variable
 
 logging.basicConfig(filename='etl_app.log',
-                            filemode='a',
-                            format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
-                            datefmt='%H:%M:%S',
-                            level=logging.DEBUG)
+                    filemode='a',
+                    format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
+                    datefmt='%H:%M:%S',
+                    level=logging.DEBUG)
 # todo : add date to the logger format
 logging.info("Running ETL Service")
 
 logger = logging.getLogger('etl_service')
 
-
 DEFAULT_MAX_DATE = datetime(2020, 1, 1, 0, 0, 0)
 DEFAULT_MAX_ROWS = 1000
 BLANK_USER_DICT = {'user_first_name': None,
-'user_last_name': None, 'user_merchant_id': None,
-'user_phone_number': None, 'user_created_at': None, 'user_updated_at':None}
+                   'user_last_name': None, 'user_merchant_id': None,
+                   'user_phone_number': None, 'user_created_at': None, 'user_updated_at': None}
 
 # Config the postgres connection
-
-
 
 
 # the values of those depend on your setup
@@ -42,24 +39,27 @@ POSTGRES_USER = get_env_variable("POSTGRES_USER")
 POSTGRES_PW = get_env_variable("POSTGRES_PW")
 POSTGRES_DB = get_env_variable("POSTGRES_DB")
 
-DB_URL = 'postgresql+psycopg2://{user}:{pw}@{url}/{db}'.format(user=POSTGRES_USER, pw=POSTGRES_PW, url=POSTGRES_URL,
-                                                               db=POSTGRES_DB)
-
 app = Flask(__name__)
 crontab = Crontab(app)
-
-app.config['SQLALCHEMY_DATABASE_URI'] = DB_URL
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # silence the deprecation warning
-
 # db_postgres = SQLAlchemy(app)
 
-DATABASE_CONNECTION_STRING = f'postgresql://{POSTGRES_USER}:{POSTGRES_PW}@{POSTGRES_URL}'
-
-
-engine = create_engine(DATABASE_CONNECTION_STRING, echo=False)
+database_connection_url = f'postgresql://{POSTGRES_USER}:{POSTGRES_PW}@{POSTGRES_URL}/{POSTGRES_DB}'
+engine = create_engine(database_connection_url, echo=False)
+try:
+    engine.connect()
+except sqlalchemy.exc.OperationalError:
+    database_connection_url = f'postgresql://{POSTGRES_USER}:{POSTGRES_PW}@{POSTGRES_URL}/'
+    engine = create_engine(database_connection_url, echo=False)
 # TODO CHECK IF THE DATABASE EXISTS - IF NOT = CREATE IT FIRST
 
-# import pdb; pdb.set_trace()
+# if database does not exist create it:
+if not database_exists(engine, POSTGRES_DB):
+    with engine.connect() as connection:
+        with connection.execution_options(isolation_level='AUTOCOMMIT'):
+            connection.execute(f'CREATE DATABASE {POSTGRES_DB}')
+        # reconnect to the target database:
+        database_connection_url = f'postgresql://{POSTGRES_USER}:{POSTGRES_PW}@{POSTGRES_URL}/{POSTGRES_DB}'
+        engine = create_engine(database_connection_url, echo=False)
 
 # create the table in postgres (if it does not exist)
 with engine.connect() as connection:
@@ -96,7 +96,6 @@ orders = db_mongo['orders']
 
 @crontab.job(minute="*/5")
 def synch_postgres_with_mongo():
-
     current_row_batch = []
     # if received a value from postgres - use it
     # for filtering the results from mongo
@@ -106,17 +105,16 @@ def synch_postgres_with_mongo():
         query = {'updated_at': {'$lte': max_date}}  # TODO order the rows by date!!!
     else:
         # on subsequent runs, take all orders that have been updated more recently than last synch
-        query = {'updated_at': {'$gte': max_date}} # TODO order the rows by date!!!
+        query = {'updated_at': {'$gte': max_date}}  # TODO order the rows by date!!!
 
     updated_orders = orders.find(query).sort('updated_at')
-
 
     # TODO should I maybe transform some values like dates. Not sure - check.
     # Transform - iterate through orders
     for updated_order_record in updated_orders:
         # for each order select the corresponding user
         user_id = updated_order_record['user_id']
-        user_record = users.find_one({'user_id': user_id })
+        user_record = users.find_one({'user_id': user_id})
         # connect the dicts, get rid of the '_id' key
         # TODO what if there is no such user in the users collection
         if user_record is not None:
