@@ -4,17 +4,22 @@ import logging
 import time
 import zipfile
 
+from utils import get_env_variable
+
 from pymongo import MongoClient
 from pymongo.errors import BulkWriteError
 
 # TODO set the logging to a file : data_loading.log
+
+MONGO_HOST = get_env_variable('MONGO_HOST')
+MONGO_PORT = int(get_env_variable('MONGO_PORT'))
 
 DATE_COLS_ORDERS = ['created_at', 'date_tz', 'updated_at', 'fulfillment_date_tz']
 DATE_COLS_USERS = ['created_at', 'updated_at']
 MAX_RECORD_NUMBER = 10 ** 6  # todo make this number configurable from config
 
 # create client to mongo
-client = MongoClient('localhost', 27017)
+client = MongoClient(MONGO_HOST, MONGO_PORT)
 
 # create a new database:
 db = client['pymongo_test']

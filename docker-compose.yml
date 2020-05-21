@@ -1,0 +1,29 @@
+version: '2'
+
+#volumes:
+#  # for persistence between restarts
+#  postgres_data: {}
+
+services:
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "${MONGO_PORT}:27017"
+    container_name: db
+#    volumes: ~/mongo/data:/data/db
+
+  postgres_db:
+    image: postgres:10.13
+#    volumes:
+#      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PW}
+    ports: #make db accessible locally
+      - "127.0.0.1:54320:5432"
+
+
+#  redis:
+#    image: redis:3.2.9
+#    ports: #make redis accessible locally
+#      - "127.0.0.1:6379:6379"

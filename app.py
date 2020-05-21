@@ -11,6 +11,7 @@ from pymongo import MongoClient
 
 # from .db_statements import STMT_CREATE_ORDERS_USERS, STMT_UPSERT_POSTGRES
 from db_statements import *
+from utils import get_env_variable
 
 
 logging.basicConfig(filename='etl_app.log',
@@ -32,12 +33,7 @@ BLANK_USER_DICT = {'user_first_name': None,
 
 # Config the postgres connection
 
-def get_env_variable(name):
-    try:
-        return os.environ[name]
-    except KeyError:
-        message = "Expected environment variable '{}' not set.".format(name)
-        raise Exception(message)
+
 
 
 # the values of those depend on your setup
@@ -57,8 +53,13 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False  # silence the deprecation 
 
 # db_postgres = SQLAlchemy(app)
 
-INSTALLED_DATABASE_URL = 'postgresql://postgres:uGAn7agA@localhost:5432/go_parrot'
-engine = create_engine(INSTALLED_DATABASE_URL, echo=False)
+DATABASE_CONNECTION_STRING = f'postgresql://{POSTGRES_USER}:{POSTGRES_PW}@{POSTGRES_URL}'
+
+
+engine = create_engine(DATABASE_CONNECTION_STRING, echo=False)
+# TODO CHECK IF THE DATABASE EXISTS - IF NOT = CREATE IT FIRST
+
+# import pdb; pdb.set_trace()
 
 # create the table in postgres (if it does not exist)
 with engine.connect() as connection:
