@@ -17,12 +17,11 @@ from utils import database_exists, get_env_variable
 logging.basicConfig(filename='etl_app.log',
                     filemode='a',
                     format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
-                    datefmt='%H:%M:%S',
+                    datefmt='%Y-%m-%d %H:%M:%S',
                     level=logging.DEBUG)
-# todo : add date to the logger format
-logging.info("Running ETL Service")
 
 logger = logging.getLogger('etl_service')
+logger.info("Running ETL Service")
 
 DEFAULT_MAX_DATE = datetime(2020, 1, 1, 0, 0, 0)
 DEFAULT_MAX_ROWS = 1000
