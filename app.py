@@ -45,21 +45,23 @@ crontab = Crontab(app)
 
 database_connection_url = f'postgresql://{POSTGRES_USER}:{POSTGRES_PW}@{POSTGRES_URL}/{POSTGRES_DB}'
 engine = create_engine(database_connection_url, echo=False)
+
 try:
     engine.connect()
 except sqlalchemy.exc.OperationalError:
+    logger.warning(f'Could not connect to the database {POSTGRES_DB}')
+    logger.info('Trying to connect without using the database name')
     database_connection_url = f'postgresql://{POSTGRES_USER}:{POSTGRES_PW}@{POSTGRES_URL}/'
     engine = create_engine(database_connection_url, echo=False)
-# TODO CHECK IF THE DATABASE EXISTS - IF NOT = CREATE IT FIRST
-
-# if database does not exist create it:
-if not database_exists(engine, POSTGRES_DB):
-    with engine.connect() as connection:
-        with connection.execution_options(isolation_level='AUTOCOMMIT'):
-            connection.execute(f'CREATE DATABASE {POSTGRES_DB}')
-        # reconnect to the target database:
-        database_connection_url = f'postgresql://{POSTGRES_USER}:{POSTGRES_PW}@{POSTGRES_URL}/{POSTGRES_DB}'
-        engine = create_engine(database_connection_url, echo=False)
+    # if database does not exist create it:
+    if not database_exists(engine, POSTGRES_DB):
+        logger.info(f'The database {POSTGRES_DB} does not exist, re-creating the database')
+        with engine.connect() as connection:
+            with connection.execution_options(isolation_level='AUTOCOMMIT'):
+                connection.execute(f'CREATE DATABASE {POSTGRES_DB}')
+            # reconnect to the target database:
+            database_connection_url = f'postgresql://{POSTGRES_USER}:{POSTGRES_PW}@{POSTGRES_URL}/{POSTGRES_DB}'
+            engine = create_engine(database_connection_url, echo=False)
 
 # create the table in postgres (if it does not exist)
 with engine.connect() as connection:
@@ -97,19 +99,15 @@ orders = db_mongo['orders']
 @crontab.job(minute="*/5")
 def synch_postgres_with_mongo():
     current_row_batch = []
-    # if received a value from postgres - use it
-    # for filtering the results from mongo
-    # TODO It is necessary to include a limit on the number of records to fetch, like 1000
     if is_first_synchronization:
         # on the first run take all orders up to the date of the first synchronization
-        query = {'updated_at': {'$lte': max_date}}  # TODO order the rows by date!!!
+        query = {'updated_at': {'$lte': max_date}}
     else:
         # on subsequent runs, take all orders that have been updated more recently than last synch
-        query = {'updated_at': {'$gte': max_date}}  # TODO order the rows by date!!!
+        query = {'updated_at': {'$gte': max_date}}
 
     updated_orders = orders.find(query).sort('updated_at')
 
-    # TODO should I maybe transform some values like dates. Not sure - check.
     # Transform - iterate through orders
     for updated_order_record in updated_orders:
         # for each order select the corresponding user
