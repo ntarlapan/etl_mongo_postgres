@@ -12,11 +12,13 @@ from pymongo import MongoClient
 
 # from .db_statements import STMT_CREATE_ORDERS_USERS, STMT_UPSERT_POSTGRES
 from db_statements import *
-from utils import database_exists, get_env_variable
+from utils import database_exists, get_env_variable, load_env_variables_from_file
+
+load_env_variables_from_file(env_file='.env')
 
 logging.basicConfig(filename='etl_app.log',
                     filemode='a',
-                    format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
+                    format='%(asctime)s,%(msecs)d | %(name)s | %(levelname)s | %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S',
                     level=logging.DEBUG)
 

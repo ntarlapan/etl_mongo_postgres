@@ -6,7 +6,9 @@ import time
 import zipfile
 from zipfile import ZipFile
 
-from utils import get_env_variable
+from utils import get_env_variable, load_env_variables_from_file
+
+load_env_variables_from_file(env_file='.env')
 
 from pymongo import MongoClient
 from pymongo.errors import BulkWriteError
@@ -28,8 +30,11 @@ MONGO_PORT = int(get_env_variable('MONGO_PORT'))
 
 
 # todo have a dict with datecols for user and for
-DATE_COLS_ORDERS = ['created_at', 'date_tz', 'updated_at', 'fulfillment_date_tz']
-DATE_COLS_USERS = ['created_at', 'updated_at']
+DATE_COLS = {
+    'order': ['created_at', 'date_tz', 'updated_at', 'fulfillment_date_tz'],
+    'user': ['created_at', 'updated_at']
+}
+
 MAX_RECORD_NUMBER = 10 ** 3  # todo make this number configurable from config
 
 # create client to mongo
@@ -46,18 +51,7 @@ user_path = '../data/users_202002181303.csv'
 
 
 
-# database for users
-orders = db['orders']
 
-# todo replace this reset with a function
-# # first delete then ingest the orders
-orders.delete_many({})
-logger.info('deleted old orders')
-
-# reset collection users
-users = db['users']
-users.delete_many({})
-logger.info('deleted old users')
 
 
 
@@ -111,29 +105,38 @@ def load_csv_to_mongo(collection, csv_dictreader_iterator, date_columns, max_bat
     new_result = collection.insert_many(record_list)
     logger.info(f'inserted: {len(new_result.inserted_ids)} rows; total rows inserted {cur_index}')
 
-# def open_zipped_file(archive_obj, ):
-#     with zf.open(DATA_ZIP_PATH, 'r') as infile:
-#         reader = csv.reader(TextIOWrapper(infile, 'utf-8'))
-#         for row in reader:
-#             # process the CSV here
-#             print(row)
+def open_zipped_csv(acrchived_file_name, destination_collection, record_type):
+    with zf.open(acrchived_file_name, 'r') as infile:
+        csv_read_iterator = csv.DictReader(TextIOWrapper(infile, 'utf-8'))
+        load_csv_to_mongo(orders, csv_read_iterator, DATE_COLS[record_type])
+
 
 
 if __name__ == '__main__':
+    # database for users
+    orders = db['orders']
+    # todo replace this reset with a function
+    # # first delete then ingest the orders
+    orders.delete_many({})
+    logger.info('deleted old orders')
+
+    # reset collection users
+    users = db['users']
+    users.delete_many({})
+    logger.info('deleted old users')
+
+    # open the directory and load the csv
     with ZipFile(DATA_ZIP_PATH) as zf:
         file_list = zf.namelist()
+
         order_files = [file_path for file_path in file_list if 'order' in file_path]
         user_files = [file_path for file_path in file_list if 'user' in file_path]
+
         logger.info('loading orders')
         for order_file in order_files:
-            with zf.open(order_file, 'r') as infile:
-                csv_read_iterator = csv.DictReader(TextIOWrapper(infile, 'utf-8'))
-                load_csv_to_mongo(orders, csv_read_iterator, DATE_COLS_ORDERS)
+            open_zipped_csv(order_file, orders, 'order')
         logger.info('loading users')
         for user_file in user_files:
-            with zf.open(user_file, 'r') as infile:
-                csv_read_iterator = csv.DictReader(TextIOWrapper(infile, 'utf-8'))
-                load_csv_to_mongo(users, csv_read_iterator, DATE_COLS_USERS)
-    # load_csv_to_mongo(orders, order_path, DATE_COLS_ORDERS)
-    # logger.info('loading users')
-    # load_csv_to_mongo(users, user_path, DATE_COLS_USERS)
+            open_zipped_csv(user_file, users, 'user')
+
+    logger.info(f'Successful loading of csv files from zip {DATA_ZIP_PATH}')
