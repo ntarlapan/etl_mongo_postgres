@@ -30,6 +30,11 @@ in .env file or export the variable:
 
 `export DATA_ZIP_PATH=path/to/zip_file/data.zip`
 
+The zip archive should have files similar to the
+one provided with the task. That is, the files
+for user should contain 'user' and the files for orders
+should contain 'order' in the file name. 
+
 If provideed with an .env file check the provided .env file. 
 Update values where needed, for example, if you want to use other 
 connection data (host, ip) for database.
