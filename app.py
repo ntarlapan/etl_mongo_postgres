@@ -35,8 +35,6 @@ MONGO_DATABASE = get_env_variable('MONGO_DATABASE')
 MONGO_HOST = get_env_variable('MONGO_HOST')
 MONGO_PORT = int(get_env_variable('MONGO_PORT'))
 
-
-
 # Config the postgres connection
 # the values of those depend on your setup
 POSTGRES_URL = get_env_variable("POSTGRES_URL")
@@ -50,12 +48,10 @@ crontab = Crontab(app)
 # connect to mongodb, read the data
 # establish the connection
 mongo_client = MongoClient(MONGO_HOST, MONGO_PORT)
-# TODO use "with client" context manager to automatically close the connection.
 
 db_mongo = mongo_client[MONGO_DATABASE]
 users = db_mongo['users']
 orders = db_mongo['orders']
-
 
 # connect to postgres
 database_connection_url = f'postgresql://{POSTGRES_USER}:{POSTGRES_PW}@{POSTGRES_URL}/{POSTGRES_DB}'
@@ -119,7 +115,6 @@ def synch_postgres_with_mongo():
         user_id = updated_order_record['user_id']
         user_record = users.find_one({'user_id': user_id})
         # connect the dicts, get rid of the '_id' key
-        # TODO what if there is no such user in the users collection
         if user_record is not None:
             for key, value in user_record.items():
                 if key in ['id_', 'user_id']:

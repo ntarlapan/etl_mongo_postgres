@@ -29,7 +29,6 @@ MONGO_DATABASE = get_env_variable('MONGO_DATABASE')
 MONGO_HOST = get_env_variable('MONGO_HOST')
 MONGO_PORT = int(get_env_variable('MONGO_PORT'))
 
-
 DATE_COLS = {
     'order': ['created_at', 'date_tz', 'updated_at', 'fulfillment_date_tz'],
     'user': ['created_at', 'updated_at']
@@ -40,6 +39,7 @@ try:
     MAX_RECORD_NUMBER = get_env_variable('MAX_RECORD_NUMBER')
 except KeyError:
     MAX_RECORD_NUMBER = 10 ** 3
+
 
 def parse_record_dates(record, date_columns):
     """
@@ -65,13 +65,10 @@ def load_csv_to_mongo(collection, csv_dictreader_iterator, date_columns, max_bat
     """
     load csv into the specified collection.
     """
-    # with open(csv_file_path, 'r') as file:
-    #     # TODO: parse All the numeric values.
-    # csv_reader = csv.DictReader(file)
     record_list = []
     cur_index = 0
     for record in csv_dictreader_iterator:
-        cur_index +=1
+        cur_index += 1
         parsed_record = parse_record_dates(record, date_columns)
         # record['updated_at'] = datetime.strptime(record['updated_at'],
         #                                          '%Y-%m-%d %H:%M:%S')
@@ -88,11 +85,11 @@ def load_csv_to_mongo(collection, csv_dictreader_iterator, date_columns, max_bat
     new_result = collection.insert_many(record_list)
     logger.info(f'inserted: {len(new_result.inserted_ids)} rows; total rows inserted {cur_index}')
 
+
 def open_zipped_csv(acrchived_file_name, destination_collection, record_type):
     with zf.open(acrchived_file_name, 'r') as infile:
         csv_read_iterator = csv.DictReader(TextIOWrapper(infile, 'utf-8'))
         load_csv_to_mongo(orders, csv_read_iterator, DATE_COLS[record_type])
-
 
 
 if __name__ == '__main__':
