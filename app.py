@@ -31,9 +31,13 @@ BLANK_USER_DICT = {'user_first_name': None,
                    'user_last_name': None, 'user_merchant_id': None,
                    'user_phone_number': None, 'user_created_at': None, 'user_updated_at': None}
 
+MONGO_DATABASE = get_env_variable('MONGO_DATABASE')
+MONGO_HOST = get_env_variable('MONGO_HOST')
+MONGO_PORT = int(get_env_variable('MONGO_PORT'))
+
+
+
 # Config the postgres connection
-
-
 # the values of those depend on your setup
 POSTGRES_URL = get_env_variable("POSTGRES_URL")
 POSTGRES_USER = get_env_variable("POSTGRES_USER")
@@ -42,8 +46,18 @@ POSTGRES_DB = get_env_variable("POSTGRES_DB")
 
 app = Flask(__name__)
 crontab = Crontab(app)
-# db_postgres = SQLAlchemy(app)
 
+# connect to mongodb, read the data
+# establish the connection
+mongo_client = MongoClient(MONGO_HOST, MONGO_PORT)
+# TODO use "with client" context manager to automatically close the connection.
+
+db_mongo = mongo_client[MONGO_DATABASE]
+users = db_mongo['users']
+orders = db_mongo['orders']
+
+
+# connect to postgres
 database_connection_url = f'postgresql://{POSTGRES_USER}:{POSTGRES_PW}@{POSTGRES_URL}/{POSTGRES_DB}'
 engine = create_engine(database_connection_url, echo=False)
 
@@ -125,20 +139,9 @@ def synch_postgres_with_mongo():
     with engine.connect() as connection:
         connection.execute(text(STMT_UPSERT_POSTGRES), current_row_batch)
     logger.debug(f'inserted {len(current_row_batch)} rows in Postgres')
-
+    mongo_client.close()
     logger.info(f'synchronization performed successfully at {datetime.now()}')
 
 
 if __name__ == '__main__':
-    # connect to mongodb, read the data
-    # establish the connection
-    mongo_client = MongoClient('localhost', 27017)
-    # TODO use "with client" context manager to automatically close the connection.
-
-    db_mongo = mongo_client[MONGO_COLLECTION]
-    users = db_mongo['users']
-    orders = db_mongo['orders']
-
     synch_postgres_with_mongo()
-
-    mongo_client.close()

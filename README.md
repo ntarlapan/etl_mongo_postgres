@@ -43,7 +43,7 @@ After including the .env file (please see the previous step above);
 cd into projects directory (containing docker-compose.yml)
 and run:
 
-`docker-compose up --build`
+`docker-compose up --build -d`
 
 This command will build 2 containers: 
 1 with mongodb
@@ -88,7 +88,7 @@ Load the data from CSV into Mongo:
 `python ingest_into_mongo.py`
 
 To run the etl job manually, execute:
-`python app.py `
+`python app.py`
 
 ### How to schedule the current crontab_job: 
 Make sure you are in project directory or 
