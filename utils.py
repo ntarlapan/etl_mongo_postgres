@@ -2,9 +2,9 @@ import os
 
 from dotenv import load_dotenv
 
-def load_env_variables_from_file(env_file='.env'):
 
-    # read the environment variables from .env file
+def load_env_variables_from_file(env_file='.env'):
+    """read the environment variables from .env file"""
     # Create .env file path.
     dotenv_path = os.path.join(os.path.dirname(__file__), env_file)
     # Load file from the path.
@@ -16,7 +16,7 @@ def get_env_variable(name):
         return os.environ[name]
     except KeyError:
         message = "Expected environment variable '{}' not set.".format(name)
-        raise Exception(message)
+        raise KeyError(message)
 
 
 def database_exists(engine, database_name):

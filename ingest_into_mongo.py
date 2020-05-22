@@ -2,17 +2,14 @@ import csv
 from datetime import datetime
 from io import TextIOWrapper
 import logging
-import time
-import zipfile
 from zipfile import ZipFile
-
-from utils import get_env_variable, load_env_variables_from_file
-
-load_env_variables_from_file(env_file='.env')
 
 from pymongo import MongoClient
 from pymongo.errors import BulkWriteError
 
+from utils import get_env_variable, load_env_variables_from_file
+
+# configurate the logger
 logging.basicConfig(filename='etl_app.log',
                     filemode='a',
                     format='%(asctime)s,%(msecs)d | %(name)s | %(levelname)s | %(message)s',
@@ -22,40 +19,27 @@ logging.basicConfig(filename='etl_app.log',
 logger = logging.getLogger('loading_csv_to_mongo')
 logger.info("Running Loadind from CSV to Mongo")
 
+load_env_variables_from_file(env_file='.env')
+
+# the path to zip file
 DATA_ZIP_PATH = get_env_variable('DATA_ZIP_PATH')
 
+# the env variable for mongo
 MONGO_DATABASE = get_env_variable('MONGO_DATABASE')
 MONGO_HOST = get_env_variable('MONGO_HOST')
 MONGO_PORT = int(get_env_variable('MONGO_PORT'))
 
 
-# todo have a dict with datecols for user and for
 DATE_COLS = {
     'order': ['created_at', 'date_tz', 'updated_at', 'fulfillment_date_tz'],
     'user': ['created_at', 'updated_at']
 }
 
-MAX_RECORD_NUMBER = 10 ** 3  # todo make this number configurable from config
-
-# create client to mongo
-client = MongoClient(MONGO_HOST, MONGO_PORT)
-
-# create a new database:
-db = client[MONGO_DATABASE]
-
-# read the data from the csv files
-
-# todo replace these hardcoded paths with paths from environment/config
-order_path = '../data/orders_202002181303.csv'
-user_path = '../data/users_202002181303.csv'
-
-
-
-
-
-
-
-
+# if the maximum rows per batch is set in env, use it, otherwise set a default value
+try:
+    MAX_RECORD_NUMBER = get_env_variable('MAX_RECORD_NUMBER')
+except KeyError:
+    MAX_RECORD_NUMBER = 10 ** 3
 
 def parse_record_dates(record, date_columns):
     """
@@ -82,7 +66,6 @@ def load_csv_to_mongo(collection, csv_dictreader_iterator, date_columns, max_bat
     load csv into the specified collection.
     """
     # with open(csv_file_path, 'r') as file:
-    #     # TODO adjust ingestion to take memory into consideration. Use some number of rows only
     #     # TODO: parse All the numeric values.
     # csv_reader = csv.DictReader(file)
     record_list = []
@@ -113,13 +96,15 @@ def open_zipped_csv(acrchived_file_name, destination_collection, record_type):
 
 
 if __name__ == '__main__':
+    # create client to mongo
+    client = MongoClient(MONGO_HOST, MONGO_PORT)
+    # create a new database:
+    db = client[MONGO_DATABASE]
     # database for users
     orders = db['orders']
-    # todo replace this reset with a function
-    # # first delete then ingest the orders
+    # first delete then ingest the orders
     orders.delete_many({})
     logger.info('deleted old orders')
-
     # reset collection users
     users = db['users']
     users.delete_many({})

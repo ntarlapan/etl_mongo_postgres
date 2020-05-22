@@ -86,16 +86,6 @@ else:
 # configs mongodb
 MONGO_COLLECTION = 'pymongo_test'
 
-# connect to mongodb, read the data
-# establish the connection
-client = MongoClient('localhost', 27017)
-# TODO use "with client" context manager to automatically close the connection.
-
-
-db_mongo = client[MONGO_COLLECTION]
-users = db_mongo['users']
-orders = db_mongo['orders']
-
 
 @crontab.job(minute="*/5")
 def synch_postgres_with_mongo():
@@ -140,4 +130,15 @@ def synch_postgres_with_mongo():
 
 
 if __name__ == '__main__':
+    # connect to mongodb, read the data
+    # establish the connection
+    mongo_client = MongoClient('localhost', 27017)
+    # TODO use "with client" context manager to automatically close the connection.
+
+    db_mongo = mongo_client[MONGO_COLLECTION]
+    users = db_mongo['users']
+    orders = db_mongo['orders']
+
     synch_postgres_with_mongo()
+
+    mongo_client.close()
